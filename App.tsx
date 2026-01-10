@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import BookCard from './components/BookCard';
 import AdminPanel from './components/AdminPanel';
+import Council from './components/Council';
 import Logo from './components/Logo';
 import { Book, Discipline } from './types';
 import { storageService } from './services/storageService';
@@ -214,6 +215,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<Home books={books} />} />
           <Route path="/archive" element={<Home books={books} />} />
+          <Route path="/council" element={<Council />} />
           <Route path="/admin" element={isAdmin ? <AdminPanel /> : <Navigate to="/login" />} />
           <Route path="/login" element={
             <div className="min-h-[85vh] flex items-center justify-center p-6 bg-radial-at-b from-[#121214] to-[#0a0a0b]">
@@ -247,7 +249,6 @@ const App: React.FC = () => {
         <footer className="border-t border-zinc-900 py-32 bg-[#080809]">
           <div className="container mx-auto px-4">
             <div className="flex flex-col items-center text-center space-y-10 mb-20">
-              {/* Primary Lockup: Centered under the symbol */}
               <div className="flex flex-col items-center space-y-8">
                  <Logo className="w-20 h-20" />
                  <div className="space-y-4">

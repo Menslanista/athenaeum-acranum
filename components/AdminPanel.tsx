@@ -27,7 +27,9 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Eye
+  Eye,
+  Minimize2,
+  Filter
 } from 'lucide-react';
 
 type SortField = 'title' | 'author' | 'createdAt' | 'category';
@@ -48,10 +50,14 @@ const AdminPanel: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
+  // Date Range State
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
   // PDF Preview State
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [fitToPage, setFitToPage] = useState(false);
+  const [fitToPage, setFitToPage] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +110,7 @@ const AdminPanel: React.FC = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === sortedBooks.length) {
+    if (selectedIds.size === sortedBooks.length && sortedBooks.length > 0) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(sortedBooks.map(b => b.id)));
@@ -207,10 +213,21 @@ const AdminPanel: React.FC = () => {
   };
 
   const sortedBooks = useMemo(() => {
-    const filtered = books.filter(book => 
-      book.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      book.author.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = books.filter(book => {
+      // Search term filter
+      const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            book.author.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Date Range logic
+      const bookDate = new Date(book.createdAt).setHours(0, 0, 0, 0);
+      const start = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null;
+      const end = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : null;
+
+      const matchesStart = start ? bookDate >= start : true;
+      const matchesEnd = end ? bookDate <= end : true;
+
+      return matchesSearch && matchesStart && matchesEnd;
+    });
 
     return filtered.sort((a, b) => {
       let comparison = 0;
@@ -223,62 +240,106 @@ const AdminPanel: React.FC = () => {
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [books, searchTerm, sortField, sortOrder]);
+  }, [books, searchTerm, sortField, sortOrder, startDate, endDate]);
+
+  const handleZoomIn = () => {
+    setFitToPage(false);
+    setZoom(prev => Math.min(prev + 0.25, 4));
+  };
+
+  const handleZoomOut = () => {
+    setFitToPage(false);
+    setZoom(prev => Math.max(prev - 0.25, 0.25));
+  };
+
+  const toggleFitToPage = () => {
+    const nextState = !fitToPage;
+    setFitToPage(nextState);
+    if (nextState) setZoom(1);
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 min-h-screen">
       {/* PDF Preview Modal */}
       {previewPdf && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setPreviewPdf(null)} />
-          <div className="relative w-full max-w-6xl h-full bg-[#121214] border border-zinc-800 rounded-sm overflow-hidden flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50">
-              <div className="flex items-center gap-4">
-                <FileText className="w-5 h-5 text-[#D4AF37]" />
-                <span className="roman text-xs tracking-[0.2em] text-[#D4AF37] uppercase">Archive Viewer</span>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-8 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => setPreviewPdf(null)} />
+          <div className="relative w-full h-full max-w-7xl bg-[#0a0a0b] border border-zinc-800 flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
+            {/* Modal Header */}
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-zinc-800 bg-[#0d0d0e] z-10 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#D4AF37]/10 rounded-sm">
+                  <FileText className="w-5 h-5 text-[#D4AF37]" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="roman text-[10px] tracking-[0.3em] text-[#D4AF37] uppercase leading-none">Archival Text Viewer</span>
+                  <span className="text-[8px] text-zinc-600 uppercase tracking-widest mt-1">Encrypted Access</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 md:gap-4 bg-zinc-900 border border-zinc-800 p-1 rounded-sm">
+
+              {/* Functional Zoom Controls */}
+              <div className="flex items-center gap-1 bg-[#0a0a0b] border border-zinc-800 p-1 rounded-sm">
                 <button 
-                  onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
-                  className="p-1.5 hover:text-[#D4AF37] transition-colors" title="Zoom Out"
+                  onClick={handleZoomOut}
+                  className="p-2 text-zinc-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all"
+                  title="Diminish Detail"
                 >
                   <ZoomOut className="w-4 h-4" />
                 </button>
-                <span className="text-[10px] w-12 text-center roman text-zinc-500">{Math.round(zoom * 100)}%</span>
+                <div className="w-20 text-center">
+                  <span className="text-[10px] roman text-zinc-400 font-bold tracking-widest">
+                    {fitToPage ? 'AUTO' : `${Math.round(zoom * 100)}%`}
+                  </span>
+                </div>
                 <button 
-                  onClick={() => setZoom(prev => Math.min(3, prev + 0.25))}
-                  className="p-1.5 hover:text-[#D4AF37] transition-colors" title="Zoom In"
+                  onClick={handleZoomIn}
+                  className="p-2 text-zinc-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all"
+                  title="Augment Detail"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
-                <div className="w-px h-4 bg-zinc-800 mx-1" />
+                <div className="w-px h-6 bg-zinc-800 mx-2" />
                 <button 
-                  onClick={() => { setFitToPage(!fitToPage); setZoom(1); }}
-                  className={`p-1.5 transition-colors ${fitToPage ? 'text-[#D4AF37]' : 'hover:text-[#D4AF37]'}`} title="Fit to Page"
+                  onClick={toggleFitToPage}
+                  className={`p-2 transition-all flex items-center gap-2 ${fitToPage ? 'text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/20' : 'text-zinc-500 hover:text-[#D4AF37]'}`}
+                  title={fitToPage ? "Release Dimension" : "Align to Portal"}
                 >
-                  <Maximize2 className="w-4 h-4" />
+                  {fitToPage ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  <span className="text-[9px] roman uppercase tracking-[0.1em] hidden md:inline">Fit Portal</span>
                 </button>
               </div>
-              <button onClick={() => setPreviewPdf(null)} className="text-zinc-500 hover:text-white p-2">
-                <X className="w-6 h-6" />
+
+              <button 
+                onClick={() => setPreviewPdf(null)} 
+                className="p-2 text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <span className="text-[9px] roman uppercase tracking-[0.2em] hidden sm:inline">Close Record</span>
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-grow overflow-auto p-4 md:p-8 flex justify-center bg-zinc-950">
+
+            {/* Viewer Content with Enhanced Zoom Rendering */}
+            <div className="flex-grow overflow-auto bg-[#050505] relative flex justify-center p-4 md:p-12 scroll-smooth">
                <div 
-                 className="transition-all duration-300 origin-top shadow-2xl"
+                 className={`transition-all duration-300 origin-top shadow-2xl relative ${fitToPage ? 'w-full h-full' : ''}`}
                  style={{ 
-                   transform: `scale(${zoom})`,
+                   transform: fitToPage ? 'none' : `scale(${zoom})`,
                    width: fitToPage ? '100%' : 'auto',
+                   minWidth: fitToPage ? 'none' : 'min(90vw, 850px)',
                    height: fitToPage ? '100%' : 'auto'
                  }}
                >
                  <embed 
                    src={previewPdf} 
-                   className="w-full h-full min-w-[80vw] min-h-[120vh]"
+                   className="w-full h-full min-h-[70vh] md:min-h-[85vh] border-0"
                    type="application/pdf"
                  />
+                 {/* Parchment overlay effect */}
+                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-[#D4AF37]/[0.02] to-transparent mix-blend-overlay" />
                </div>
             </div>
+            
+            <div className="h-1 bg-gradient-to-r from-transparent via-[#D4AF37]/20 to-transparent" />
           </div>
         </div>
       )}
@@ -459,7 +520,7 @@ const AdminPanel: React.FC = () => {
         </form>
       )}
 
-      {/* Sorting & Search Toolbar */}
+      {/* Enhanced Sorting & Search Toolbar with Date Filter */}
       <div className="flex flex-wrap items-center gap-6 mb-10 p-5 bg-[#0d0d0e] border border-zinc-800/50 rounded-sm shadow-sm relative z-10">
         <div className="flex items-center gap-3">
           <button 
@@ -486,6 +547,37 @@ const AdminPanel: React.FC = () => {
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-[#0a0a0b] border border-zinc-800 rounded-sm px-10 py-2.5 text-xs focus:border-[#D4AF37]/40 outline-none text-zinc-100 transition-colors"
           />
+        </div>
+
+        {/* Date Range Filter UI */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-[#0a0a0b] border border-zinc-800 rounded-sm p-1.5 px-3">
+            <Calendar className="w-3.5 h-3.5 text-zinc-600" />
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="bg-transparent text-[10px] uppercase tracking-tighter text-zinc-400 outline-none w-28 px-1 focus:text-[#D4AF37] transition-colors"
+              title="Start Date"
+            />
+            <span className="text-zinc-800 text-[10px] font-bold">to</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="bg-transparent text-[10px] uppercase tracking-tighter text-zinc-400 outline-none w-28 px-1 focus:text-[#D4AF37] transition-colors"
+              title="End Date"
+            />
+            {(startDate || endDate) && (
+              <button 
+                onClick={() => {setStartDate(''); setEndDate('');}} 
+                className="ml-2 text-zinc-600 hover:text-red-400 transition-colors"
+                title="Reset Range"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -542,7 +634,7 @@ const AdminPanel: React.FC = () => {
         </div>
 
         <div className="ml-auto text-[9px] uppercase tracking-[0.2em] text-zinc-700 italic font-medium">
-          {sortedBooks.length} {searchTerm ? 'Matches' : 'Total Entries'}
+          {sortedBooks.length} {searchTerm || startDate || endDate ? 'Matches' : 'Total Entries'}
         </div>
       </div>
 
@@ -580,7 +672,11 @@ const AdminPanel: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => setPreviewPdf(book.fileUrl === '#' ? null : book.fileUrl)}
+                onClick={() => {
+                  setPreviewPdf(book.fileUrl === '#' ? null : book.fileUrl);
+                  setZoom(1);
+                  setFitToPage(true);
+                }}
                 className={`p-3 text-zinc-700 hover:text-[#D4AF37] hover:bg-[#D4AF37]/5 rounded-full transition-all ${book.fileUrl === '#' ? 'opacity-20 cursor-not-allowed' : ''}`}
                 title="View Document"
                 disabled={book.fileUrl === '#'}

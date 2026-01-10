@@ -21,6 +21,14 @@ export interface Book {
   createdAt: number;
 }
 
+export interface Epiphany {
+  id: string;
+  seeker: string;
+  content: string;
+  timestamp: number;
+  resonance: number; // Similar to 'likes' but thematic
+}
+
 export interface User {
   email: string;
   isAdmin: boolean;

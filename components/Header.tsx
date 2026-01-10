@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
-import { Menu, Search, User, LogOut } from 'lucide-react';
+import { Menu, Search, User, LogOut, Users } from 'lucide-react';
 
 interface HeaderProps {
   isAdmin: boolean;
@@ -25,6 +25,10 @@ const Header: React.FC<HeaderProps> = ({ isAdmin, onLogout, onOpenSearch }) => {
         <nav className="hidden md:flex items-center gap-10 text-[10px] uppercase tracking-[0.3em] font-medium text-zinc-500">
           <Link to="/" className="hover:text-[#D4AF37] transition-colors">Manifesto</Link>
           <Link to="/archive" className="hover:text-[#D4AF37] transition-colors">The Archives</Link>
+          <Link to="/council" className="hover:text-[#D4AF37] transition-colors flex items-center gap-2">
+            <Users className="w-3.5 h-3.5" />
+            The Council
+          </Link>
           <button onClick={onOpenSearch} className="flex items-center gap-2 hover:text-[#D4AF37] transition-colors">
             <Search className="w-3.5 h-3.5" />
             Search
